@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<meta name="description" content="Paste a link, strip the tracking codes from it, copy the clean link, and share it to your apps." />
+<link rel="icon" href="data:," />
+<title>Link Cleaner</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --surface:#f7f5f0;
+    --surface-2:#efede6;
+    --ink:#141311;
+    --muted:#6b675e;
+    --line:#d9d4c9;
+    --line-strong:#141311;
+    --accent:#e8490f;
+    --accent-ink:#ffffff;
+    --good:#0e6b3a;
+    --good-bg:#e6f3ec;
+    --warn-bg:#fdf0e8;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --serif:Georgia,"Iowan Old Style","Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#121110;
+      --surface:#1d1c19;
+      --surface-2:#26241f;
+      --ink:#f4f1ea;
+      --muted:#a8a29a;
+      --line:#3a382f;
+      --line-strong:#f4f1ea;
+      --accent:#ff5c1f;
+      --accent-ink:#160b06;
+      --good:#5ec98f;
+      --good-bg:#14291d;
+      --warn-bg:#2e1a10;
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:17px;
+    line-height:1.55;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:28px 20px 64px}
+  h1{
+    font-family:var(--serif);
+    font-size:clamp(38px,7vw,58px);
+    line-height:1.02;
+    letter-spacing:-.02em;
+    margin:10px 0 12px;
+    font-weight:700;
+  }
+  h1 em{font-style:italic;font-weight:400}
+  .lede{font-size:19px;line-height:1.5;max-width:620px;margin:0 0 8px;color:var(--ink)}
+  .lede strong{font-weight:700}
+  .kicker{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0;
+  }
+  .kicker b{color:var(--accent);font-weight:700}
+
+  /* Cleaner panel */
+  .panel{
+    margin-top:26px;
+    border:2px solid var(--line-strong);
+    background:var(--surface);
+    padding:20px;
+  }
+  @media (max-width:560px){.panel{padding:16px}}
+  label{display:block;font-weight:700;font-size:15px;margin-bottom:8px}
+  .hint{color:var(--muted);font-size:14px;margin:0 0 12px}
+  .input-row{display:flex;gap:10px;align-items:stretch}
+  .url-input{
+    flex:1;min-width:0;
+    font-family:var(--mono);
+    font-size:15px;
+    line-height:1.4;
+    padding:13px 14px;
+    border:1.5px solid var(--line-strong);
+    background:var(--bg);
+    color:var(--ink);
+    border-radius:8px;
+    word-break:break-all;
+  }
+  .url-input:focus{outline:3px solid var(--accent);outline-offset:2px}
+  .url-input::placeholder{color:var(--muted)}
+  .btn{
+    appearance:none;border:1.5px solid var(--line-strong);border-radius:8px;
+    background:var(--bg);color:var(--ink);
+    font:inherit;font-weight:700;font-size:15px;
+    padding:12px 18px;cursor:pointer;white-space:nowrap;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .btn:hover{background:var(--surface-2)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .btn-primary:hover{filter:brightness(1.06);background:var(--accent)}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+  .actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  @media (max-width:560px){
+    .input-row{flex-direction:column}
+    .input-row .btn{width:100%}
+    .actions .btn{flex:1 1 auto}
+  }
+  .examples{margin-top:16px;font-size:14px;color:var(--muted)}
+  .examples span{margin-right:6px}
+  .chip-btn{
+    appearance:none;border:1px solid var(--line);background:var(--bg);color:var(--ink);
+    border-radius:999px;padding:5px 11px;font:inherit;font-size:13.5px;font-weight:600;
+    cursor:pointer;margin:3px 4px 3px 0;
+  }
+  .chip-btn:hover{border-color:var(--line-strong)}
+  .chip-btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .error{
+    display:none;margin-top:14px;padding:12px 14px;border:1.5px solid var(--accent);
+    background:var(--warn-bg);border-radius:8px;font-size:15px;
+  }
+  .error.show{display:block}
+
+  /* Result */
+  .result{display:none;margin-top:18px}
+  .result.show{display:block}
+  .result-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .result-head h2{font-family:var(--serif);font-size:24px;margin:0;letter-spacing:-.01em}
+  .count{font-family:var(--mono);font-size:13px;color:var(--good);font-weight:700}
+  .count.zero{color:var(--muted)}
+  .clean-box{
+    border:1.5px solid var(--line-strong);border-radius:8px;background:var(--bg);
+    padding:14px 16px;
+  }
+  .clean-url{
+    font-family:var(--mono);font-size:15.5px;line-height:1.5;
+    word-break:break-all;overflow-wrap:anywhere;margin:0;
+  }
+  .clean-box-actions{display:flex;gap:10px;margin:0 0 12px;flex-wrap:wrap}
+  @media (max-width:560px){.clean-box-actions .btn{flex:1 1 auto}}
+  .copied-note{font-size:14px;font-weight:700;color:var(--good);min-height:20px;margin:8px 0 0}
+  .removed{margin-top:16px}
+  .removed h3,.kept h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-family:var(--mono);font-weight:700}
+  .removed-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+  .removed-list li{
+    font-family:var(--mono);font-size:13px;
+    border:1px solid var(--line);background:var(--bg);border-radius:999px;
+    padding:6px 11px;max-width:100%;overflow-wrap:anywhere;
+  }
+  .removed-list li b{color:var(--accent)}
+  .removed-list li span{color:var(--muted)}
+  .kept{margin-top:14px;font-size:14.5px;color:var(--muted)}
+  .kept code{font-family:var(--mono);color:var(--ink);font-size:13.5px}
+  .nothing{margin-top:14px;font-size:15px;color:var(--muted)}
+
+  /* Share */
+  .share{margin-top:34px}
+  .share h2{font-family:var(--serif);font-size:28px;letter-spacing:-.01em;margin:0 0 6px}
+  .share p{margin:0 0 14px;color:var(--muted);font-size:15.5px;max-width:620px}
+  .note-field{margin-bottom:14px}
+  .note-field label{font-size:14px}
+  .note-input{
+    width:100%;font:inherit;font-size:15.5px;padding:11px 13px;
+    border:1.5px solid var(--line-strong);border-radius:8px;background:var(--bg);color:var(--ink);
+  }
+  .note-input:focus{outline:3px solid var(--accent);outline-offset:2px}
+  .share-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;list-style:none;margin:0;padding:0}
+  @media (max-width:640px){.share-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:380px){.share-grid{grid-template-columns:1fr}}
+  .share-grid a{
+    display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink);
+    border:1.5px solid var(--line-strong);border-radius:10px;background:var(--bg);
+    padding:13px 14px;min-height:58px;
+  }
+  .share-grid a:hover{background:var(--surface)}
+  .share-grid a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .share-grid a .mark{
+    flex:0 0 auto;width:34px;height:34px;border-radius:8px;background:var(--ink);color:var(--bg);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:14px;letter-spacing:.02em;font-family:var(--sans);
+  }
+  .share-grid a .name{font-weight:700;font-size:15.5px;line-height:1.2}
+  .share-grid a .sub{display:block;font-weight:400;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .share-grid a .arrow{margin-left:auto;color:var(--muted);font-weight:700}
+  .share-grid a.disabled{opacity:.45;pointer-events:none}
+  .native-share{margin-top:12px;width:100%}
+  .share-locked{font-size:14px;color:var(--muted);margin-top:10px}
+
+  /* Recent */
+  .recent{margin-top:34px;display:none}
+  .recent.show{display:block}
+  .recent h2{font-family:var(--serif);font-size:24px;margin:0 0 10px}
+  .recent-list{list-style:none;margin:0;padding:0;border-top:1.5px solid var(--line-strong)}
+  .recent-list li{
+    display:flex;gap:10px;align-items:center;padding:11px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .recent-list .r-url{font-family:var(--mono);font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mini-btn{
+    appearance:none;border:1.5px solid var(--line-strong);background:var(--bg);color:var(--ink);
+    border-radius:7px;padding:7px 12px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;flex:0 0 auto;
+  }
+  .mini-btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+  /* Explainer */
+  .explain{margin-top:40px;border-top:2px solid var(--line-strong);padding-top:24px}
+  .explain h2{font-family:var(--serif);font-size:28px;letter-spacing:-.01em;margin:0 0 14px}
+  .x-box{border:1.5px solid var(--line-strong);border-radius:10px;padding:18px;background:var(--surface);margin-bottom:20px}
+  .x-box h3{margin:0 0 8px;font-size:18px}
+  .x-box p{margin:0 0 10px}
+  .x-box p:last-child{margin-bottom:0}
+  .x-box code{font-family:var(--mono);font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media (max-width:640px){.two-col{grid-template-columns:1fr}}
+  .two-col h3{font-size:15px;margin:0 0 8px}
+  .two-col ul{margin:0;padding-left:20px;color:var(--muted);font-size:15px}
+  .two-col li{margin-bottom:6px}
+  .two-col li b,.two-col li code{color:var(--ink)}
+  .two-col code{font-family:var(--mono);font-size:13.5px}
+  .fineprint{margin-top:26px;font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+  .fineprint p{margin:0 0 8px}
+  .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <p class="kicker">Paste &middot; Clean &middot; <b>Share</b></p>
+  <h1>Link Cleaner</h1>
+  <p class="lede">Paste a link. Get the <strong>same page</strong>, minus the part that follows you around &mdash; the tracking codes added when a link is copied or clicked.</p>
+
+  <section class="panel" aria-labelledby="cleaner-label">
+    <label id="cleaner-label" for="urlInput">Your link</label>
+    <p class="hint">Works on links from X, YouTube, Instagram, Facebook, Google, Amazon, TikTok and most other sites. Nothing is sent anywhere &mdash; cleaning happens in this tab.</p>
+
+    <div class="input-row">
+      <input class="url-input" id="urlInput" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+        placeholder="https://x.com/username/status/123…?s=46&amp;t=…&amp;si=…" />
+      <button class="btn" id="pasteBtn" type="button">Paste</button>
+      <button class="btn btn-primary" id="cleanBtn" type="button">Clean link</button>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="clearBtn" type="button">Clear</button>
+    </div>
+
+    <div class="error" id="errorBox" role="alert"></div>
+
+    <div class="examples">
+      <span>No link handy? Try one:</span><br />
+      <button class="chip-btn" type="button" data-example="x">X post &middot; s, t &amp; si</button>
+      <button class="chip-btn" type="button" data-example="youtube">YouTube &middot; si</button>
+      <button class="chip-btn" type="button" data-example="shop">Shop link &middot; affiliate tag</button>
+    </div>
+  </section>
+
+  <section class="result" id="result" aria-live="polite" aria-labelledby="resultHeading">
+    <div class="result-head">
+      <h2 id="resultHeading">Clean link</h2>
+      <span class="count" id="countLabel"></span>
+    </div>
+    <div class="clean-box">
+      <div class="clean-box-actions">
+        <button class="btn btn-primary" id="copyBtn" type="button">Copy clean link</button>
+        <a class="btn" id="openBtn" href="#" target="_blank" rel="noopener noreferrer">Open link</a>
+      </div>
+      <p class="clean-url" id="cleanUrl"></p>
+      <p class="copied-note" id="copiedNote" aria-live="polite"></p>
+    </div>
+
+    <div class="removed" id="removedWrap">
+      <h3>Removed</h3>
+      <ul class="removed-list" id="removedList"></ul>
+    </div>
+    <p class="nothing" id="nothingNote" hidden>This link had no tracking codes in it. It&rsquo;s already clean &mdash; you can still copy and share it as it is.</p>
+    <p class="kept" id="keptNote"></p>
+  </section>
+
+  <section class="share" aria-labelledby="shareHeading">
+    <h2 id="shareHeading">Share it</h2>
+    <p>Pick an app. Each one opens with the <strong>clean</strong> link ready to send &mdash; never the tracked one.</p>
+
+    <div class="note-field">
+      <label for="noteInput">Add a note to share with the link <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <input class="note-input" id="noteInput" type="text" autocomplete="off"
+        placeholder="e.g. Worth a watch" maxlength="200" />
+    </div>
+
+    <ul class="share-grid" id="shareGrid">
+      <li><a href="#" data-app="copy" id="shareCopyLink"><span class="mark">&#10697;</span><span><span class="name">Copy link</span><span class="sub">Paste anywhere</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="x" target="_blank" rel="noopener noreferrer"><span class="mark">X</span><span><span class="name">X</span><span class="sub">Post</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="whatsapp" target="_blank" rel="noopener noreferrer"><span class="mark">WA</span><span><span class="name">WhatsApp</span><span class="sub">Chat or group</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="telegram" target="_blank" rel="noopener noreferrer"><span class="mark">TG</span><span><span class="name">Telegram</span><span class="sub">Chat or channel</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="facebook" target="_blank" rel="noopener noreferrer"><span class="mark">f</span><span><span class="name">Facebook</span><span class="sub">Share post</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="linkedin" target="_blank" rel="noopener noreferrer"><span class="mark">in</span><span><span class="name">LinkedIn</span><span class="sub">Share post</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="reddit" target="_blank" rel="noopener noreferrer"><span class="mark">r/</span><span><span class="name">Reddit</span><span class="sub">Submit link</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="bluesky" target="_blank" rel="noopener noreferrer"><span class="mark">B</span><span><span class="name">Bluesky</span><span class="sub">New post</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="threads" target="_blank" rel="noopener noreferrer"><span class="mark">@</span><span><span class="name">Threads</span><span class="sub">New post</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="pinterest" target="_blank" rel="noopener noreferrer"><span class="mark">P</span><span><span class="name">Pinterest</span><span class="sub">Create pin</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="email" target="_blank" rel="noopener noreferrer"><span class="mark">&#9993;</span><span><span class="name">Email</span><span class="sub">Send by mail</span></span><span class="arrow">&rarr;</span></a></li>
+      <li><a href="#" data-app="sms" target="_blank" rel="noopener noreferrer"><span class="mark">SMS</span><span><span class="name">Text message</span><span class="sub">SMS</span></span><span class="arrow">&rarr;</span></a></li>
+    </ul>
+    <p class="share-locked" id="shareLocked">Clean a link above to unlock sharing. Until then, these buttons stay off.</p>
+    <button class="btn native-share" id="nativeShareBtn" type="button" hidden>Share via your device&hellip;</button>
+  </section>
+
+  <section class="recent" id="recentSection" aria-labelledby="recentHeading">
+    <h2 id="recentHeading">Cleaned this session</h2>
+    <ul class="recent-list" id="recentList"></ul>
+  </section>
+
+  <section class="explain" aria-labelledby="explainHeading">
+    <h2 id="explainHeading">What&rsquo;s actually in those codes?</h2>
+
+    <div class="x-box">
+      <h3>X&rsquo;s new copied-link codes</h3>
+      <p>When you tap &ldquo;copy link&rdquo; on X, it now adds codes after the <code>?</code> in the URL:</p>
+      <p><code>s=</code> says how it was shared &mdash; <code>s=46</code> is the iPhone app, <code>s=20</code> is desktop. <code>t=</code> is unique to that session and device, and is an encoded user ID. <code>si=</code> is also tied to the sharer.</p>
+      <p>Only X can decode them back to a person &mdash; a stranger seeing the link just sees a jumble of letters, and there&rsquo;s no phone number in it. Still, deleting everything from the <code>?</code> onwards &mdash; or just the codes this page removes &mdash; leaves a link that opens the same post, without the trail.</p>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3>Stripped from most links</h3>
+        <ul>
+          <li><code>utm_source</code>, <code>utm_medium</code>, <code>utm_campaign</code> &mdash; ad &amp; campaign tracking</li>
+          <li><code>fbclid</code> &mdash; Facebook click ID</li>
+          <li><code>gclid</code>, <code>gbraid</code>, <code>wbraid</code> &mdash; Google Ads click IDs</li>
+          <li><code>msclkid</code> &mdash; Microsoft Ads click ID</li>
+          <li><code>igshid</code> &mdash; Instagram share ID</li>
+          <li><code>mc_cid</code>, <code>mc_eid</code> &mdash; Mailchimp tracking</li>
+          <li><code>twclid</code>, <code>ttclid</code>, <code>yclid</code> &mdash; X, TikTok &amp; Yahoo click IDs</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Kept when they matter</h3>
+        <ul>
+          <li><b>Video IDs and timestamps</b> &mdash; YouTube&rsquo;s <code>v</code> and <code>t</code> stay, so the video still opens at the right moment.</li>
+          <li><b>Search terms</b> &mdash; <code>q</code> on a search page stays.</li>
+          <li><b>Page and product details</b> &mdash; anything that changes what the page shows stays.</li>
+          <li><b>Everything else</b> that isn&rsquo;t on the tracking list is left alone, rather than guessed at.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="fineprint">
+      <p><strong>Will the clean link still work?</strong> Yes, for ordinary pages, posts and videos. Tracking codes only record where a click came from &mdash; they don&rsquo;t change the content. If a link ever needs a code to work (a password-reset or invite link, for example), don&rsquo;t clean it.</p>
+      <p><strong>Private by design.</strong> Your links never leave this page. There&rsquo;s no server, no saving, and nothing is remembered once you close the tab.</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var urlInput = document.getElementById("urlInput");
+  var cleanBtn = document.getElementById("cleanBtn");
+  var pasteBtn = document.getElementById("pasteBtn");
+  var clearBtn = document.getElementById("clearBtn");
+  var errorBox = document.getElementById("errorBox");
+  var result = document.getElementById("result");
+  var cleanUrlEl = document.getElementById("cleanUrl");
+  var countLabel = document.getElementById("countLabel");
+  var removedWrap = document.getElementById("removedWrap");
+  var removedList = document.getElementById("removedList");
+  var nothingNote = document.getElementById("nothingNote");
+  var keptNote = document.getElementById("keptNote");
+  var copyBtn = document.getElementById("copyBtn");
+  var openBtn = document.getElementById("openBtn");
+  var copiedNote = document.getElementById("copiedNote");
+  var noteInput = document.getElementById("noteInput");
+  var shareGrid = document.getElementById("shareGrid");
+  var shareLocked = document.getElementById("shareLocked");
+  var nativeShareBtn = document.getElementById("nativeShareBtn");
+  var recentSection = document.getElementById("recentSection");
+  var recentList = document.getElementById("recentList");
+  var shareCopyLink = document.getElementById("shareCopyLink");
+
+  var currentClean = "";
+  var recent = [];
+
+  var EXAMPLES = {
+    x: "https://x.com/username/status/1234567890123456789?s=46&t=AbCDeFgHiJkLmNoPqRsTuVw&si=QrStUvWxYz123456",
+    youtube: "https://www.youtube.com/watch?v=aqz-KE-bpKQ&t=43s&si=9a8b7c6d5e4f3g2h1&feature=shared",
+    shop: "https://www.amazon.com/dp/B0EXAMPLE12?tag=creator-store-20&linkCode=ll1&ref_=as_li_ss_tl&language=en_US&th=1"
+  };
+
+  var TRACKING = {
+    "utm_source":"Campaign tracking (UTM)",
+    "utm_medium":"Campaign tracking (UTM)",
+    "utm_campaign":"Campaign tracking (UTM)",
+    "utm_term":"Campaign tracking (UTM)",
+    "utm_content":"Campaign tracking (UTM)",
+    "utm_id":"Campaign tracking (UTM)",
+    "utm_source_platform":"Campaign tracking (UTM)",
+    "utm_creative_format":"Campaign tracking (UTM)",
+    "utm_marketing_tactic":"Campaign tracking (UTM)",
+    "fbclid":"Facebook click ID",
+    "fb_action_ids":"Facebook tracking",
+    "fb_action_types":"Facebook tracking",
+    "fb_source":"Facebook tracking",
+    "fbclid":"Facebook click ID",
+    "gclid":"Google Ads click ID",
+    "gbraid":"Google Ads click ID",
+    "wbraid":"Google Ads click ID",
+    "gad_source":"Google Ads tracking",
+    "gclsrc":"Google Ads tracking",
+    "dclid":"Google click ID",
+    "srsltid":"Google Shopping ID",
+    "msclkid":"Microsoft Ads click ID",
+    "igshid":"Instagram share ID",
+    "igsh":"Instagram share ID",
+    "mc_cid":"Mailchimp tracking",
+    "mc_eid":"Mailchimp tracking",
+    "twclid":"X click ID",
+    "ttclid":"TikTok click ID",
+    "yclid":"Yahoo click ID",
+    "ysmcid":"Yahoo tracking",
+    "li_fat_id":"LinkedIn tracking",
+    "mkt_tok":"Marketo tracking",
+    "vero_id":"Vero tracking",
+    "vero_conv":"Vero tracking",
+    "pk_campaign":"Analytics campaign",
+    "pk_kwd":"Analytics keyword",
+    "pk_source":"Analytics source",
+    "pk_medium":"Analytics medium",
+    "sc_campaign":"Adobe / social campaign",
+    "sc_channel":"Adobe / social campaign",
+    "sc_content":"Adobe / social campaign",
+    "sc_medium":"Adobe / social campaign",
+    "sc_outcome":"Adobe / social campaign",
+    "sc_regionid":"Adobe / social campaign",
+    "sc_country":"Adobe / social campaign",
+    "wt_mc":"WebTrends tracking",
+    "wt_cc0":"WebTrends tracking",
+    "wt_cc1":"WebTrends tracking",
+    "wt_cc2":"WebTrends tracking",
+    "hsa_cam":"HubSpot ad tracking",
+    "hsa_grp":"HubSpot ad tracking",
+    "hsa_mt":"HubSpot ad tracking",
+    "hsa_src":"HubSpot ad tracking",
+    "hsa_ad":"HubSpot ad tracking",
+    "hsa_acc":"HubSpot ad tracking",
+    "hsa_net":"HubSpot ad tracking",
+    "hsa_kw":"HubSpot ad tracking",
+    "hsa_tgt":"HubSpot ad tracking",
+    "hsa_ver":"HubSpot ad tracking",
+    "hsctatracking":"HubSpot tracking",
+    "_ga":"Google Analytics",
+    "_gl":"Google Analytics",
+    "_gac":"Google Analytics",
+    "_gcl_au":"Google Ads tracking",
+    "oly_anon_id":"Analytics ID",
+    "oly_enc_id":"Analytics ID",
+    "rb_clickid":"Ad click ID",
+    "spm":"Tracking",
+    "scm":"Tracking",
+    "tag":"Affiliate / store tag",
+    "linkcode":"Affiliate link code",
+    "linkid":"Affiliate link ID",
+    "ref_":"Referral tracking",
+    "ref":"Referral tracking",
+    "ref_src":"Referral tracking",
+    "ref_url":"Referral tracking",
+    "vero_id":"Vero tracking",
+    "feature":"YouTube share tracking",
+    "pp":"YouTube tracking",
+    "app":"App tracking",
+    "at_custom1":"Tracking",
+    "at_custom2":"Tracking",
+    "at_custom3":"Tracking",
+    "at_custom4":"Tracking",
+    "at_custom5":"Tracking",
+    "at_medium":"Tracking",
+    "at_campaign":"Tracking"
+  };
+
+  function isXHost(host){
+    return host === "x.com" || host === "twitter.com" || host.endsWith(".x.com") || host.endsWith(".twitter.com");
+  }
+  function isYouTubeHost(host){
+    return host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be" || host === "youtube-nocookie.com" || host.endsWith(".youtube-nocookie.com");
+  }
+  function isAmazonHost(host){
+    return host.indexOf("amazon.") !== -1;
+  }
+
+  function reasonFor(name, host){
+    var n = name.toLowerCase();
+    if (isXHost(host)){
+      if (n === "s") return "X share source \u2014 46 = iPhone app, 20 = desktop";
+      if (n === "t") return "X session code \u2014 tied to the sharer";
+      if (n === "si") return "X source ID \u2014 tied to who shared it";
+    }
+    if (isYouTubeHost(host) && n === "si") return "YouTube share ID";
+    if (isAmazonHost(host) && n === "tag") return "Amazon affiliate tag";
+    if (TRACKING[n]) return TRACKING[n];
+    if (n.indexOf("utm_") === 0) return "Campaign tracking (UTM)";
+    if (n.indexOf("fb_") === 0) return "Facebook tracking";
+    if (n.indexOf("mc_") === 0) return "Mailchimp tracking";
+    if (n.indexOf("hsa_") === 0) return "HubSpot ad tracking";
+    if (n.indexOf("wt_") === 0) return "WebTrends tracking";
+    if (n.indexOf("sc_") === 0) return "Campaign tracking";
+    if (n.indexOf("pk_") === 0) return "Analytics tracking";
+    if (n.indexOf("vero_") === 0) return "Vero tracking";
+    if (n.indexOf("gclid") === 0 || n.indexOf("gbraid") === 0) return "Google Ads tracking";
+    return "Tracking parameter";
+  }
+
+  function isTrackingParam(name, host){
+    var n = name.toLowerCase();
+    if (isXHost(host) && (n === "s" || n === "t" || n === "si")) return true;
+    if (isYouTubeHost(host) && (n === "si" || n === "feature" || n === "pp")) return true;
+    if (TRACKING[n]) return true;
+    if (n.indexOf("utm_") === 0) return true;
+    if (n.indexOf("fb_") === 0) return true;
+    if (n.indexOf("mc_") === 0) return true;
+    if (n.indexOf("hsa_") === 0) return true;
+    if (n.indexOf("wt_cc") === 0) return true;
+    if (n.indexOf("pk_") === 0) return true;
+    if (n === "_ga" || n === "_gl" || n.indexOf("_ga_") === 0) return true;
+    if (n === "gclid" || n === "gbraid" || n === "wbraid" || n === "gad_source") return true;
+    if (n === "fbclid" || n === "msclkid" || n === "igshid" || n === "twclid" || n === "ttclid") return true;
+    return false;
+  }
+
+  function extractUrl(raw){
+    var text = (raw || "").trim();
+    if (!text) return "";
+    var m = text.match(/https?:\/\/[^\s<>"']+/i) || text.match(/www\.[^\s<>"']+/i);
+    var candidate = m ? m[0] : text;
+    // Strip trailing punctuation picked up from pasted sentences.
+    candidate = candidate.replace(/[.,;:!?]+$/, "");
+    while (/[)\]}]$/.test(candidate) && candidate.indexOf("(") === -1 && candidate.indexOf("[") === -1){
+      candidate = candidate.slice(0, -1);
+    }
+    return candidate;
+  }
+
+  function cleanUrl(raw, depth){
+    depth = depth || 0;
+    var candidate = extractUrl(raw);
+    if (!candidate) return { error: "Paste a link first." };
+    if (/^www\./i.test(candidate)) candidate = "https://" + candidate;
+    var url;
+    try {
+      url = new URL(candidate);
+    } catch (e) {
+      return { error: "That doesn\u2019t look like a link. Check it starts with https:// and try again." };
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:"){
+      return { error: "Only web links (http:// or https://) can be cleaned here." };
+    }
+    // Unwrap common redirectors: Google /url?q= and Facebook l.php?u=
+    if (depth < 2){
+      var host = url.hostname.toLowerCase();
+      if ((host === "google.com" || host.endsWith(".google.com")) && url.pathname === "/url"){
+        var q = url.searchParams.get("q");
+        if (q && /^https?:\/\//i.test(q)) return cleanUrl(q, depth + 1);
+      }
+      if (host === "l.facebook.com" && url.pathname === "/l.php"){
+        var u = url.searchParams.get("u");
+        if (u && /^https?:\/\//i.test(u)) return cleanUrl(u, depth + 1);
+      }
+    }
+
+    var host = url.hostname.toLowerCase();
+    var removed = [];
+    var kept = [];
+    var seen = {};
+    url.searchParams.forEach(function(value, name){
+      if (isTrackingParam(name, host)){
+        removed.push({ name: name, value: value, reason: reasonFor(name, host) });
+      } else {
+        kept.push([name, value]);
+        seen[name.toLowerCase()] = true;
+      }
+    });
+
+    // Amazon: language/th are display prefs, not content \u2014 drop them with the affiliate clutter.
+    // (Kept simple: only when the URL is an Amazon product page with tracking already removed.)
+    if (isAmazonHost(host) && removed.length){
+      var filtered = [];
+      kept.forEach(function(pair){
+        var n = pair[0].toLowerCase();
+        if (n === "language" || n === "th" || n === "psc" || n === "dib" || n === "dib_tag"){
+          removed.push({ name: pair[0], value: pair[1], reason: "Amazon display / referral clutter" });
+        } else {
+          filtered.push(pair);
+        }
+      });
+      kept = filtered;
+    }
+
+    var params = new URLSearchParams();
+    kept.forEach(function(pair){ params.append(pair[0], pair[1]); });
+    var qs = params.toString();
+    var cleaned = url.protocol + "//" + url.host + url.pathname + (qs ? "?" + qs : "") + url.hash;
+    return { cleaned: cleaned, removed: removed, kept: kept, original: candidate };
+  }
+
+  function shortValue(v){
+    if (!v) return "";
+    if (v.length <= 22) return v;
+    return v.slice(0, 20) + "\u2026";
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function showError(msg){
+    errorBox.textContent = msg;
+    errorBox.classList.add("show");
+    result.classList.remove("show");
+    setShareEnabled(false);
+  }
+  function hideError(){
+    errorBox.textContent = "";
+    errorBox.classList.remove("show");
+  }
+
+  function renderResult(res){
+    hideError();
+    currentClean = res.cleaned;
+    cleanUrlEl.textContent = res.cleaned;
+    openBtn.href = res.cleaned;
+    result.classList.add("show");
+    copiedNote.textContent = "";
+
+    var n = res.removed.length;
+    countLabel.textContent = n ? (n + (n === 1 ? " tracker removed" : " trackers removed")) : "Already clean";
+    countLabel.classList.toggle("zero", n === 0);
+
+    removedList.innerHTML = "";
+    if (n){
+      removedWrap.style.display = "";
+      nothingNote.hidden = true;
+      res.removed.forEach(function(r){
+        var li = document.createElement("li");
+        li.innerHTML = "<b>" + escapeHtml(r.name) + "</b>" + (r.value ? " = " + escapeHtml(shortValue(r.value)) : "") + " <span>\u2014 " + escapeHtml(r.reason) + "</span>";
+        removedList.appendChild(li);
+      });
+    } else {
+      removedWrap.style.display = "none";
+      nothingNote.hidden = false;
+    }
+
+    if (res.kept.length){
+      var names = res.kept.map(function(p){ return "<code>" + escapeHtml(p[0]) + "</code>"; }).join(", ");
+      keptNote.innerHTML = "Kept, because the page needs them: " + names + ".";
+    } else {
+      keptNote.textContent = "";
+    }
+
+    setShareEnabled(true);
+    updateShareLinks();
+    addRecent(res.cleaned);
+
+    // Bring the copy button to the top of the screen: on a phone the
+    // input panel fills the viewport, so the result would otherwise
+    // sit below the fold.
+    var rect = result.getBoundingClientRect();
+    if (rect.top < 0 || rect.bottom > window.innerHeight){
+      var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      result.scrollIntoView(reduceMotion ? { block: "start" } : { behavior: "smooth", block: "start" });
+    }
+  }
+
+  function doClean(){
+    var raw = urlInput.value;
+    var res = cleanUrl(raw);
+    if (res.error){
+      currentClean = "";
+      showError(res.error);
+      return;
+    }
+    renderResult(res);
+  }
+
+  function copyText(text, done){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ fallbackCopy(text, done); });
+    } else {
+      fallbackCopy(text, done);
+    }
+  }
+  function fallbackCopy(text, done){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    done(ok);
+  }
+
+  function flashCopied(){
+    copiedNote.textContent = "Copied \u2014 paste it anywhere.";
+    setTimeout(function(){ copiedNote.textContent = ""; }, 2600);
+  }
+
+  function shareHref(app, link, note){
+    var u = encodeURIComponent(link);
+    var t = encodeURIComponent(note || "");
+    var withNote = note ? note + " " + link : link;
+    var w = encodeURIComponent(withNote);
+    switch (app){
+      case "x": return "https://twitter.com/intent/tweet?url=" + u + (note ? "&text=" + t : "");
+      case "whatsapp": return "https://wa.me/?text=" + w;
+      case "telegram": return "https://t.me/share/url?url=" + u + (note ? "&text=" + t : "");
+      case "facebook": return "https://www.facebook.com/sharer/sharer.php?u=" + u;
+      case "linkedin": return "https://www.linkedin.com/sharing/share-offsite/?url=" + u;
+      case "reddit": return "https://www.reddit.com/submit?url=" + u + (note ? "&title=" + t : "");
+      case "bluesky": return "https://bsky.app/intent/compose?text=" + w;
+      case "threads": return "https://www.threads.net/intent/post?text=" + w;
+      case "pinterest": return "https://pinterest.com/pin/create/button/?url=" + u + (note ? "&description=" + t : "");
+      case "email": return "mailto:?subject=" + encodeURIComponent(note || "A link to share") + "&body=" + encodeURIComponent(withNote);
+      case "sms": return "sms:?&body=" + w;
+      default: return "#";
+    }
+  }
+
+  function updateShareLinks(){
+    var note = noteInput.value.trim();
+    var links = shareGrid.querySelectorAll("a[data-app]");
+    links.forEach(function(a){
+      var app = a.getAttribute("data-app");
+      if (app === "copy") return;
+      if (currentClean) a.href = shareHref(app, currentClean, note);
+      else a.href = "#";
+    });
+  }
+
+  function setShareEnabled(enabled){
+    var links = shareGrid.querySelectorAll("a[data-app]");
+    links.forEach(function(a){
+      a.classList.toggle("disabled", !enabled);
+      a.setAttribute("aria-disabled", enabled ? "false" : "true");
+      if (!enabled) a.setAttribute("tabindex", "-1"); else a.removeAttribute("tabindex");
+    });
+    shareLocked.style.display = enabled ? "none" : "";
+    if (typeof navigator !== "undefined" && navigator.share){
+      nativeShareBtn.hidden = !enabled;
+    } else {
+      nativeShareBtn.hidden = true;
+    }
+  }
+
+  function addRecent(link){
+    if (recent.indexOf(link) !== -1) return;
+    recent.unshift(link);
+    if (recent.length > 5) recent.pop();
+    renderRecent();
+  }
+  function renderRecent(){
+    recentList.innerHTML = "";
+    if (!recent.length){ recentSection.classList.remove("show"); return; }
+    recentSection.classList.add("show");
+    recent.forEach(function(link){
+      var li = document.createElement("li");
+      var span = document.createElement("span");
+      span.className = "r-url";
+      span.textContent = link;
+      span.title = link;
+      var btn = document.createElement("button");
+      btn.className = "mini-btn";
+      btn.type = "button";
+      btn.textContent = "Copy";
+      btn.addEventListener("click", function(){
+        copyText(link, function(ok){
+          btn.textContent = ok ? "Copied" : "Copy failed";
+          setTimeout(function(){ btn.textContent = "Copy"; }, 1800);
+        });
+      });
+      var open = document.createElement("a");
+      open.className = "mini-btn";
+      open.href = link;
+      open.target = "_blank";
+      open.rel = "noopener noreferrer";
+      open.textContent = "Open";
+      open.style.textDecoration = "none";
+      li.appendChild(span);
+      li.appendChild(btn);
+      li.appendChild(open);
+      recentList.appendChild(li);
+    });
+  }
+
+  cleanBtn.addEventListener("click", doClean);
+  urlInput.addEventListener("keydown", function(e){
+    if (e.key === "Enter"){ e.preventDefault(); doClean(); }
+  });
+  urlInput.addEventListener("paste", function(){
+    setTimeout(doClean, 0);
+  });
+  urlInput.addEventListener("input", function(){
+    hideError();
+    if (!urlInput.value.trim()){
+      result.classList.remove("show");
+      currentClean = "";
+      setShareEnabled(false);
+    }
+  });
+
+  pasteBtn.addEventListener("click", function(){
+    if (navigator.clipboard && navigator.clipboard.readText){
+      navigator.clipboard.readText().then(function(text){
+        if (text){ urlInput.value = text.trim(); urlInput.focus(); doClean(); }
+        else { urlInput.focus(); }
+      }, function(){ urlInput.focus(); });
+    } else {
+      urlInput.focus();
+    }
+  });
+
+  clearBtn.addEventListener("click", function(){
+    urlInput.value = "";
+    noteInput.value = "";
+    result.classList.remove("show");
+    currentClean = "";
+    hideError();
+    copiedNote.textContent = "";
+    setShareEnabled(false);
+    updateShareLinks();
+    urlInput.focus();
+  });
+
+  copyBtn.addEventListener("click", function(){
+    if (!currentClean) return;
+    copyText(currentClean, function(ok){
+      copiedNote.textContent = ok ? "Copied \u2014 paste it anywhere." : "Copy didn\u2019t work in this browser. Long-press / select the clean link below to copy it.";
+      if (ok) setTimeout(function(){ copiedNote.textContent = ""; }, 2600);
+    });
+  });
+
+  shareCopyLink.addEventListener("click", function(e){
+    e.preventDefault();
+    if (!currentClean) return;
+    copyText(currentClean, function(ok){
+      flashCopied();
+      shareCopyLink.querySelector(".name").textContent = ok ? "Copied!" : "Copy link";
+      setTimeout(function(){ shareCopyLink.querySelector(".name").textContent = "Copy link"; }, 1800);
+    });
+  });
+
+  noteInput.addEventListener("input", updateShareLinks);
+
+  nativeShareBtn.addEventListener("click", function(){
+    if (!currentClean || !navigator.share) return;
+    var note = noteInput.value.trim();
+    navigator.share({ title: note || "Shared link", text: note || "", url: currentClean }).catch(function(){ /* user dismissed */ });
+  });
+
+  // Example links
+  var exampleBtns = document.querySelectorAll("[data-example]");
+  exampleBtns.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      urlInput.value = EXAMPLES[btn.getAttribute("data-example")];
+      doClean();
+      urlInput.focus({ preventScroll: true });
+    });
+  });
+
+  // Share links: block clicks while disabled (pointer-events handles most, this covers keyboard/assistive tech)
+  shareGrid.addEventListener("click", function(e){
+    var a = e.target.closest("a[data-app]");
+    if (a && a.classList.contains("disabled")) e.preventDefault();
+  });
+
+  setShareEnabled(false);
+})();
+</script>
+</body>
+</html>
